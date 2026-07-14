@@ -155,6 +155,77 @@
 | 天翼云盘 | 天翼账号配置、频道监控、链接转存、自动清理 |
 | 其他功能 | SSH 终端、万能转发与 TG API、Pansou、微信通知、资源社区、本地文件秒传、海报刷新、服务器连通性检测、视频下载 |
 
+### 8. 🎬 字幕搜索下载 Bot
+
+针对 115 网盘已整理影视目录，通过独立 Telegram Bot 交互式查找缺字幕的影片，从 OpenSubtitles、SubHD、Zimuku 多源搜索字幕，自动下载并上传到 115 对应目录。上传的字幕文件采用 Emby/Jellyfin 兼容命名（视频同名 + 语言后缀），Emby 下次扫描时会自动识别。
+
+**配置要求：**
+- 独立的 Telegram Bot Token（在 @BotFather 创建）
+- 115 Cookie 已配置（与主 Bot 共用）
+- 115 整理目标目录已配置
+- OpenSubtitles API Key（可选，免费注册 20次下载/天）
+
+**交互流程：** `/subtitle 电影名` → 搜索 115 目录 → 选目录 → 搜字幕 → 选字幕 → 自动上传
+
+## 字幕搜索 Bot 部署
+
+字幕 Bot 以独立 Python 脚本形式运行在 TgtoDrive 容器内，需要使用**独立的 Telegram Bot Token**。
+
+### 1. 创建字幕 Bot
+
+去 Telegram 找 [@BotFather](https://t.me/BotFather)，发送 `/newbot`，按提示创建独立字幕 Bot，获取 Token。
+
+### 2. 获取 OpenSubtitles API Key（可选）
+
+去 [opensubtitles.com](https://www.opensubtitles.com) 注册账号，在 Profile → API Keys 获取。不配置也能使用 SubHD/Zimuku 爬虫作为字幕源。
+
+### 3. 注入脚本到容器
+
+```bash
+# 下载字幕 Bot 脚本（从项目 Release 或源码获取）
+# 拷贝到运行中的容器
+docker cp subtitle_service.py <容器名>:/app/
+docker cp subtitle_bot.py    <容器名>:/app/
+docker cp entrypoint.sh      <容器名>:/app/
+
+# 编译 Python 脚本
+docker exec <容器名> python -m compileall -b /app/subtitle_service.py /app/subtitle_bot.py
+```
+
+### 4. 配置环境变量
+
+编辑 `db/user.env`（或通过 Web 管理台「全局设置」添加），加入以下配置：
+
+```ini
+# 字幕搜索下载 Bot
+ENV_SUBTITLE_BOT_TOKEN=你的字幕bot的token
+ENV_SUBTITLE_OPENSUB_API_KEY=你的opensubtitles_api_key(可选)
+```
+
+### 5. 启动字幕 Bot
+
+```bash
+# 后台启动字幕 Bot
+docker exec -d <容器名> python -O /app/subtitle_bot.pyc
+
+# 验证启动
+docker logs <容器名> | grep "字幕"
+# 应看到: 🎬 字幕搜索下载 Bot 启动中...
+```
+
+### 6. 使用
+
+向字幕 Bot 发送命令：
+
+```bash
+/subtitle 子弹        # 搜索匹配目录
+/subtitle list        # 列出所有已整理目录
+/help                 # 帮助
+/cancel               # 取消当前操作
+```
+
+Bot 会列出 115 已整理目录中匹配的文件夹，选择后自动搜索字幕，下载并上传到对应视频目录。
+
 ## 快速部署
 
 ### 1. 准备环境

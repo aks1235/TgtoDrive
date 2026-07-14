@@ -138,6 +138,78 @@ TgtoDrive can turn transferred files into a cleaner media library for Emby, Jell
 - Bilibili / Douyin video download.
 - Community posting settings.
 - 123 cloud-drive API rate-limit toolbox.
+- Subtitle search and download Bot.
+
+### Subtitle Search and Download Bot
+
+An independent Telegram Bot that searches for missing subtitles in organized 115 cloud-drive directories. Supports multi-source search (OpenSubtitles API, SubHD, Zimuku), auto-downloads subtitles, and uploads them to the corresponding video directory with Emby/Jellyfin-compatible filenames.
+
+**Requirements:**
+- Independent Telegram Bot Token (create via @BotFather)
+- 115 Cookie configured (shared with main bot)
+- 115 organize target directory configured
+- OpenSubtitles API Key (optional, free tier: 20 downloads/day)
+
+**Interaction flow:** `/subtitle movie_name` → search 115 directories → select directory → search subtitles → select subtitle → auto-upload
+
+## Subtitle Bot Deployment
+
+The Subtitle Bot runs as an independent Python script inside the TgtoDrive container, requiring a **separate Telegram Bot Token**.
+
+### 1. Create Subtitle Bot
+
+Go to [@BotFather](https://t.me/BotFather) on Telegram, send `/newbot`, and follow the prompts to create a standalone bot and get its Token.
+
+### 2. Get OpenSubtitles API Key (Optional)
+
+Register at [opensubtitles.com](https://www.opensubtitles.com) → Profile → API Keys. Without it, SubHD/Zimuku scraping will be used as fallback.
+
+### 3. Inject Scripts into Container
+
+```bash
+# Download subtitles bot scripts (from project release or source)
+# Copy into running container
+docker cp subtitle_service.py <container_name>:/app/
+docker cp subtitle_bot.py    <container_name>:/app/
+docker cp entrypoint.sh      <container_name>:/app/
+
+# Compile Python scripts
+docker exec <container_name> python -m compileall -b /app/subtitle_service.py /app/subtitle_bot.py
+```
+
+### 4. Configure Environment Variables
+
+Edit `db/user.env` (or via Web Console → Global Settings) and add:
+
+```ini
+# Subtitle Search & Download Bot
+ENV_SUBTITLE_BOT_TOKEN=your_subtitle_bot_token
+ENV_SUBTITLE_OPENSUB_API_KEY=your_opensub_api_key(optional)
+```
+
+### 5. Start Subtitle Bot
+
+```bash
+# Start subtitle bot in background
+docker exec -d <container_name> python -O /app/subtitle_bot.pyc
+
+# Verify startup
+docker logs <container_name> | grep "Subtitle"
+# Should see: 🎬 Subtitle Search Bot started...
+```
+
+### 6. Usage
+
+Send these commands to your subtitle bot:
+
+```bash
+/subtitle movie_name   # Search for matching directories
+/subtitle list         # List all organized directories
+/help                  # Show help
+/cancel                # Cancel current operation
+```
+
+The bot will list matching folders from your organized 115 directories, then search, download and upload subtitles automatically.
 
 ## Quick Start
 

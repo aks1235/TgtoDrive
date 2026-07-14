@@ -11,14 +11,20 @@ ENV PYTHONUNBUFFERED=1
 COPY requirements.txt .
 # 安装依赖（可选：使用国内镜像源加速下载）
 RUN pip install -r requirements.txt
+# 【字幕 Bot】额外依赖
+RUN pip install beautifulsoup4 lxml
+
 # 【关键优化2】再复制其他文件（代码变动不影响依赖层缓存）
 COPY . /app
+
+# 设置 entrypoint.sh 可执行
+RUN chmod +x entrypoint.sh
 
 # 编译Python文件为.pyc
 RUN python -m compileall -b .
 
-# 删除原始的.py文件
-RUN rm *.py
+# 删除原始的.py文件（保留 entrypoint.sh）
+RUN find . -maxdepth 1 -name "*.py" -type f -delete
 
-# 运行Python脚本
-CMD ["python", "-O", "tgto123.pyc"]
+# 运行双 Bot
+CMD ["/app/entrypoint.sh"]
